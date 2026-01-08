@@ -1,0 +1,106 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  password      String
+  plan          String   @default("free") // free, pro, premium
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  portfolioItems PortfolioItem[]
+  alerts         PriceAlert[]
+  subscriptions  Subscription[]
+}
+
+// Asset model for stocks, FIIs, ETFs, BDRs
+model Asset {
+  id          String   @id @default(cuid())
+  ticker      String   @unique
+  name        String
+  type        String   // Ação, FII, ETF, BDR
+  sector      String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  priceHistories PriceHistory[]
+  portfolioItems PortfolioItem[]
+  alerts          PriceAlert[]
+}
+
+// Price history for assets
+model PriceHistory {
+  id        String   @id @default(cuid())
+  assetId   String
+  date      DateTime
+  open      Float
+  high      Float
+  low       Float
+  close     Float
+  volume    Int
+  createdAt DateTime @default(now())
+
+  asset Asset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([assetId, date])
+}
+
+// Portfolio items (user's investments)
+model PortfolioItem {
+  id          String   @id @default(cuid())
+  userId      String
+  assetId     String
+  quantity    Int
+  avgPrice    Float
+  totalInvested Float
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, assetId])
+}
+
+// Price alerts for users
+model PriceAlert {
+  id          String   @id @default(cuid())
+  userId      String
+  assetId     String
+  alertType   String   // above, below
+  targetPrice Float
+  triggered   Boolean  @default(false)
+  triggeredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  asset Asset  @relation(fields: [assetId], references: [id], onDelete: Cascade)
+}
+
+// Subscription plans
+model Subscription {
+  id          String   @id @default(cuid())
+  userId      String
+  plan        String   // free, pro, premium
+  status      String   // active, canceled, expired
+  startDate   DateTime
+  endDate     DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
